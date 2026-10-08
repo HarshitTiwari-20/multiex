@@ -27,7 +27,6 @@ import {
   ArrowLeftRight,
   Pencil,
   Search,
-  Check,
 } from 'lucide-react';
 import { useDashboard, type Screen } from '@/store/dashboard';
 import { TileSkeleton } from './TileSkeleton';
@@ -35,8 +34,9 @@ import { TileError } from './TileError';
 import { buildYouTubeEmbed } from '@/lib/youtube';
 import {
   isTradingViewWidget, getTradingViewSymbol, withTradingViewSymbol,
-  normalizeSymbolInput, shortSymbol, POPULAR_SYMBOLS,
+  normalizeSymbolInput, shortSymbol,
 } from '@/lib/tradingview';
+import { SymbolSearchBox } from './SymbolSearchBox';
 
 type TileProps = {
   screen: Screen;
@@ -304,57 +304,23 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
         </div>
       </div>
 
-      {/* TradingView symbol search — like a regular TV chart */}
+      {/* TradingView symbol search — type "btc" → all BTC contracts, like TV */}
       {isTV && symOpen && (
         <div
           className="absolute inset-x-2 top-11 z-10 rounded-xl border border-border bg-black/85 p-2 shadow-xl backdrop-blur"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center gap-1.5">
-            <Search className="h-4 w-4 shrink-0 text-muted" />
-            <input
-              ref={symInputRef}
-              autoFocus={selected}
-              value={symDraft}
-              onChange={(e) => { setSymDraft(e.target.value.toUpperCase()); setSymError(null); }}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-                if (e.key === 'Enter') applySymbol(symDraft);
-                if (e.key === 'Escape') { setSymOpen(false); (e.target as HTMLInputElement).blur(); }
-              }}
-              placeholder="Just type: AAPL, BTCUSD…"
-              spellCheck={false}
-              className="min-w-0 flex-1 rounded-md border border-border bg-black/50 px-2 py-1 font-mono text-[13px] text-text placeholder:text-muted focus:border-accent focus:outline-none"
-              aria-label="Chart symbol"
-            />
-            <button
-              onClick={() => applySymbol(symDraft)}
-              className="rounded-md bg-accent px-2.5 py-1 text-[13px] font-semibold text-black hover:brightness-110"
-              title="Load symbol (Enter)"
-            >
-              <Check className="h-4 w-4" />
-            </button>
-          </div>
-          {symError
-            ? <p className="mt-1 text-[12px] text-red-400">{symError}</p>
-            : <p className="mt-1 truncate font-mono text-[11px] text-muted">Now: {currentSymbol || '—'} · just type + Enter · Esc for shortcuts</p>}
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {POPULAR_SYMBOLS.slice(0, 8).map((p) => (
-              <button
-                key={p.symbol}
-                onClick={() => { setSymDraft(p.symbol); applySymbol(p.symbol); }}
-                className={`rounded-full border px-2 py-0.5 font-mono text-[11px] transition ${
-                  currentSymbol === p.symbol
-                    ? 'border-accent bg-accent/20 text-accent'
-                    : 'border-border text-muted hover:border-accent/50 hover:text-text'
-                }`}
-                title={p.symbol}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+          <SymbolSearchBox
+            ref={symInputRef}
+            value={symDraft}
+            onChange={(v) => { setSymDraft(v); setSymError(null); }}
+            onPick={(symbol) => applySymbol(symbol)}
+            onEscape={() => { setSymOpen(false); symInputRef.current?.blur(); }}
+            currentSymbol={currentSymbol}
+            error={symError}
+            autoFocus={selected}
+          />
         </div>
       )}
 

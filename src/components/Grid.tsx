@@ -78,7 +78,7 @@ export function Grid({
         draggableHandle=".drag-handle"
         isDraggable
         isResizable
-        resizeHandles={['se']}
+        resizeHandles={['se', 'sw', 'ne', 'nw', 'e', 'w', 's', 'n']}
         compactType="vertical"
         preventCollision={false}
         useCSSTransforms
@@ -128,11 +128,46 @@ export function Grid({
           border-radius: 12px;
           opacity: 1 !important;
         }
-        .mv-grid .react-grid-item > .react-resizable-handle::after {
-          border-right: 2px solid #555 !important;
-          border-bottom: 2px solid #555 !important;
+        /* corner + edge resize handles: hidden until hover/selected, big hit area */
+        .mv-grid .react-grid-item > .react-resizable-handle {
+          position: absolute;
+          z-index: 6;
+          opacity: 0;
+          transition: opacity 150ms ease;
         }
-        .mv-grid .react-grid-item.resizing { opacity: 0.9; }
+        .mv-grid .react-grid-item:hover > .react-resizable-handle,
+        .mv-grid .react-grid-item.resizing > .react-resizable-handle { opacity: 1; }
+        .mv-grid .react-grid-item > .react-resizable-handle-se,
+        .mv-grid .react-grid-item > .react-resizable-handle-sw,
+        .mv-grid .react-grid-item > .react-resizable-handle-ne,
+        .mv-grid .react-grid-item > .react-resizable-handle-nw {
+          width: 22px; height: 22px;
+        }
+        .mv-grid .react-grid-item > .react-resizable-handle-se { bottom: 3px; right: 3px; cursor: se-resize; }
+        .mv-grid .react-grid-item > .react-resizable-handle-sw { bottom: 3px; left: 3px; cursor: sw-resize; }
+        .mv-grid .react-grid-item > .react-resizable-handle-ne { top: 3px; right: 3px; cursor: ne-resize; }
+        .mv-grid .react-grid-item > .react-resizable-handle-nw { top: 3px; left: 3px; cursor: nw-resize; }
+        .mv-grid .react-grid-item > .react-resizable-handle-se::after,
+        .mv-grid .react-grid-item > .react-resizable-handle-sw::after,
+        .mv-grid .react-grid-item > .react-resizable-handle-ne::after,
+        .mv-grid .react-grid-item > .react-resizable-handle-nw::after {
+          content: ""; position: absolute; width: 10px; height: 10px;
+          border: 0 solid #888; border-radius: 2px;
+          background: rgba(255,255,255,0.14);
+        }
+        .mv-grid .react-grid-item > .react-resizable-handle-se::after { right: 2px; bottom: 2px; border-right-width: 2.5px; border-bottom-width: 2.5px; border-color: var(--accent, #00b4d8); }
+        .mv-grid .react-grid-item > .react-resizable-handle-sw::after { left: 2px; bottom: 2px; border-left-width: 2.5px; border-bottom-width: 2.5px; }
+        .mv-grid .react-grid-item > .react-resizable-handle-ne::after { right: 2px; top: 2px; border-right-width: 2.5px; border-top-width: 2.5px; }
+        .mv-grid .react-grid-item > .react-resizable-handle-nw::after { left: 2px; top: 2px; border-left-width: 2.5px; border-top-width: 2.5px; }
+        .mv-grid .react-grid-item > .react-resizable-handle-e,
+        .mv-grid .react-grid-item > .react-resizable-handle-w { top: 12px; bottom: 12px; width: 10px; cursor: ew-resize; }
+        .mv-grid .react-grid-item > .react-resizable-handle-e { right: -2px; }
+        .mv-grid .react-grid-item > .react-resizable-handle-w { left: -2px; }
+        .mv-grid .react-grid-item > .react-resizable-handle-n,
+        .mv-grid .react-grid-item > .react-resizable-handle-s { left: 12px; right: 12px; height: 10px; cursor: ns-resize; }
+        .mv-grid .react-grid-item > .react-resizable-handle-n { top: -2px; }
+        .mv-grid .react-grid-item > .react-resizable-handle-s { bottom: -2px; }
+        .mv-grid .react-grid-item.resizing { opacity: 0.92; }
       `}</style>
     </div>
   );
