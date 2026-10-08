@@ -124,6 +124,7 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
   const [symDraft, setSymDraft] = useState(currentSymbol);
   const [symError, setSymError] = useState<string | null>(null);
   const [symOpen, setSymOpen] = useState(false);
+  const symInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setSymDraft(currentSymbol); setSymError(null); }, [currentSymbol]);
   // auto-open the symbol bar when a TV tile gets selected
@@ -136,6 +137,40 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
     updateScreen(screen.id, { url: nextUrl, name: shortSymbol(norm) || screen.name });
     setSymError(null);
   }, [screen.url, screen.id, screen.name, updateScreen]);
+
+  // Just-type search: when THIS TradingView tile is selected, printable keys
+  // go straight into the symbol box (capture phase beats global shortcuts).
+  useEffect(() => {
+    if (!isTV || !selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || t?.isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'Enter') {
+        if (symOpen && symDraft.trim()) { e.preventDefault(); e.stopPropagation(); applySymbol(symDraft); }
+        return;
+      }
+      if (e.key === 'Escape') { setSymOpen(false); return; }
+      if (e.key === 'Backspace') {
+        if (symOpen && symDraft) {
+          e.preventDefault(); e.stopPropagation();
+          setSymDraft((d) => d.slice(0, -1));
+          requestAnimationFrame(() => symInputRef.current?.focus());
+        }
+        return;
+      }
+      if (e.key.length === 1 && /[a-zA-Z0-9:.~_-]/.test(e.key)) {
+        e.preventDefault(); e.stopPropagation();
+        setSymOpen(true);
+        setSymError(null);
+        setSymDraft((d) => (d + e.key).toUpperCase().slice(0, 30));
+        requestAnimationFrame(() => symInputRef.current?.focus());
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [isTV, selected, symOpen, symDraft, applySymbol]);
 
   return (
     <motion.div
@@ -263,15 +298,16 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
           <div className="flex items-center gap-1.5">
             <Search className="h-4 w-4 shrink-0 text-muted" />
             <input
+              ref={symInputRef}
               autoFocus={selected}
               value={symDraft}
               onChange={(e) => { setSymDraft(e.target.value.toUpperCase()); setSymError(null); }}
               onKeyDown={(e) => {
                 e.stopPropagation();
                 if (e.key === 'Enter') applySymbol(symDraft);
-                if (e.key === 'Escape') setSymOpen(false);
+                if (e.key === 'Escape') { setSymOpen(false); (e.target as HTMLInputElement).blur(); }
               }}
-              placeholder="AAPL, BTCUSD, NSE:RELIANCE…"
+              placeholder="Just type: AAPL, BTCUSD…"
               spellCheck={false}
               className="min-w-0 flex-1 rounded-md border border-border bg-black/50 px-2 py-1 font-mono text-[13px] text-text placeholder:text-muted focus:border-accent focus:outline-none"
               aria-label="Chart symbol"
@@ -286,7 +322,7 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
           </div>
           {symError
             ? <p className="mt-1 text-[12px] text-red-400">{symError}</p>
-            : <p className="mt-1 truncate font-mono text-[11px] text-muted">Now: {currentSymbol || '—'} · Enter to load</p>}
+            : <p className="mt-1 truncate font-mono text-[11px] text-muted">Now: {currentSymbol || '—'} · just type + Enter · Esc for shortcuts</p>}
           <div className="mt-1.5 flex flex-wrap gap-1">
             {POPULAR_SYMBOLS.slice(0, 8).map((p) => (
               <button
