@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; --accent: #00b4d8; }
+html, body, #__next { @apply h-full bg-bg text-text antialiased; }
+body { background: #0a0a0b; }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a2e; border-radius: 8px; border: 2px solid #0a0a0b; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a40; }
+
+/* accent follows settings */
+.text-accent { color: var(--accent) !important; }
+.bg-accent { background-color: var(--accent) !important; }
+.border-accent { border-color: var(--accent) !important; }
+.ring-accent { --tw-ring-color: var(--accent) !important; }
+
+/* react-grid-layout base (so we don't depend solely on package css order) */
+.react-grid-layout { position: relative; }
+.react-grid-item { transition: all 200ms ease; transition-property: left, top, width, height; }
+.react-grid-item.cssTransforms { transition-property: transform, width, height; }
+.react-grid-item.resizing { z-index: 5; opacity: 0.92; }
+.react-grid-item.react-draggable-dragging { z-index: 10; transition: none; }
+.react-grid-item.react-grid-placeholder {
+  background: color-mix(in srgb, var(--accent) 25%, transparent) !important;
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  opacity: 1 !important;
+  transition-duration: 100ms;
+}
+.react-grid-item > .react-resizable-handle {
+  position: absolute; width: 20px; height: 20px; bottom: 2px; right: 2px;
+  cursor: se-resize; z-index: 5; opacity: 0; transition: opacity 150ms;
+}
+.react-grid-item:hover > .react-resizable-handle { opacity: 1; }
+.react-grid-item > .react-resizable-handle::after {
+  content: ""; position: absolute; right: 4px; bottom: 4px; width: 8px; height: 8px;
+  border-right: 2px solid #666; border-bottom: 2px solid #666; border-bottom-right-radius: 3px;
+}
+
+/* focus visibility */
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
