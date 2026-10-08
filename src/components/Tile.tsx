@@ -25,6 +25,7 @@ import {
   PinOff,
   Copy,
   ArrowLeftRight,
+  Pencil,
 } from 'lucide-react';
 import { useDashboard, type Screen } from '@/store/dashboard';
 import { TileSkeleton } from './TileSkeleton';
@@ -38,9 +39,10 @@ type TileProps = {
   borderRadius: number;
   onFullscreen: (id: string) => void;
   onSelect: (id: string) => void;
+  onEdit: (id: string) => void;
 };
 
-function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscreen, onSelect }: TileProps) {
+function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscreen, onSelect, onEdit }: TileProps) {
   const {
     removeScreen, updateScreen, duplicateScreen, refreshScreen,
     activeAudioId, setAudioSolo, focusedId,
@@ -179,6 +181,17 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
           <button onClick={() => onFullscreen(screen.id)} className="tile-btn" aria-label="Fullscreen" title="Fullscreen (F)">
             <Maximize className="h-4 w-4" />
           </button>
+          <button onClick={() => onEdit(screen.id)} className="tile-btn" aria-label="Edit screen" title="Edit name / URL">
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => { if (confirm(`Remove "${screen.name}"?`)) removeScreen(screen.id); }}
+            className="tile-btn tile-btn-danger"
+            aria-label="Remove screen"
+            title="Remove (Del)"
+          >
+            <X className="h-4 w-4" />
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="tile-btn" aria-label="More options" title="More">
@@ -193,6 +206,7 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
               <DropdownMenuItem onClick={() => duplicateScreen(screen.id)} className="dd-item"><Copy className="h-4 w-4" /> Duplicate</DropdownMenuItem>
               <DropdownMenuItem onClick={tryPiP} className="dd-item"><ArrowLeftRight className="h-4 w-4" /> Picture-in-picture / popout</DropdownMenuItem>
               <DropdownMenuItem onClick={openExternal} className="dd-item"><ExternalLink className="h-4 w-4" /> Open in browser</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(screen.id)} className="dd-item"><Pencil className="h-4 w-4" /> Edit…</DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 h-px bg-border" />
               <DropdownMenuItem onClick={() => removeScreen(screen.id)} className="dd-item-danger"><X className="h-4 w-4" /> Remove (Del)</DropdownMenuItem>
             </DropdownMenuContent>
@@ -229,6 +243,7 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
 
       <style jsx>{`
         .tile-btn { @apply rounded-lg bg-black/55 p-1.5 text-muted transition-colors hover:bg-black/80 hover:text-text disabled:opacity-50; }
+        .tile-btn-danger { @apply hover:bg-red-500/25 hover:text-red-300; }
         .dd-item { @apply flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-text hover:bg-accent/10 focus:bg-accent/10 focus:outline-none; }
         .dd-item-danger { @apply flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-red-400 hover:bg-red-400/10 focus:bg-red-400/10 focus:outline-none; }
       `}</style>

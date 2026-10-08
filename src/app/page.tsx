@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { Grid } from '@/components/Grid';
 import { AddScreenModal } from '@/components/AddScreenModal';
+import { EditTileModal } from '@/components/EditTileModal';
 import { LayoutSelector } from '@/components/LayoutSelector';
 import { SavedDashboardsPanel } from '@/components/SavedDashboardsPanel';
 import { SettingsPanel } from '@/components/SettingsPanel';
@@ -19,14 +20,13 @@ export default function Dashboard() {
     refreshAll, setAudioSolo, settings,
   } = useDashboard();
   const [fullscreenId, setFullscreenId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [modals, setModals] = useState<{ add?: boolean; layout?: boolean; saved?: boolean; settings?: boolean; cmd?: boolean }>({});
 
-  // accent css var
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', settings.accent);
   }, [settings.accent]);
 
-  // auto-refresh
   useEffect(() => {
     if (!settings.autoRefreshSec || screens.length === 0) return;
     const t = setInterval(() => refreshAll(), settings.autoRefreshSec * 1000);
@@ -40,10 +40,7 @@ export default function Dashboard() {
   const handleFullscreen = useCallback(() => {
     if (focused) setFullscreenId(focused);
     else if (screens[0]) setFullscreenId(screens[0].id);
-    else {
-      // app fullscreen fallback
-      document.documentElement.requestFullscreen?.().catch(() => {});
-    }
+    else document.documentElement.requestFullscreen?.().catch(() => {});
   }, [focused, screens]);
 
   const handleRefresh = useCallback(() => {
@@ -57,6 +54,8 @@ export default function Dashboard() {
     setFullscreenId(null);
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   }, []);
+
+  const handleEdit = useCallback((id: string) => { setFocused(id); setEditingId(id); }, [setFocused]);
 
   if (fullscreenId) {
     const scr = screens.find((s) => s.id === fullscreenId);
@@ -79,12 +78,17 @@ export default function Dashboard() {
           {screens.length === 0 ? (
             <EmptyState onAddFirst={() => open('add')} />
           ) : (
-            <Grid onFullscreen={(id) => { setFocused(id); setFullscreenId(id); }} />
+            <Grid
+              onFullscreen={(id) => { setFocused(id); setFullscreenId(id); }}
+              onEdit={handleEdit}
+              onAdd={() => open('add')}
+            />
           )}
         </div>
       </main>
 
       <AddScreenModal open={!!modals.add} onClose={() => close('add')} />
+      <EditTileModal id={editingId} onClose={() => setEditingId(null)} />
       <LayoutSelector open={!!modals.layout} onClose={() => close('layout')} />
       <SavedDashboardsPanel open={!!modals.saved} onClose={() => close('saved')} />
       <SettingsPanel open={!!modals.settings} onClose={() => close('settings')} />
