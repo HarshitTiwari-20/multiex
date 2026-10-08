@@ -26,11 +26,17 @@ import {
   Copy,
   ArrowLeftRight,
   Pencil,
+  Search,
+  Check,
 } from 'lucide-react';
 import { useDashboard, type Screen } from '@/store/dashboard';
 import { TileSkeleton } from './TileSkeleton';
 import { TileError } from './TileError';
 import { buildYouTubeEmbed } from '@/lib/youtube';
+import {
+  isTradingViewWidget, getTradingViewSymbol, withTradingViewSymbol,
+  normalizeSymbolInput, shortSymbol, POPULAR_SYMBOLS,
+} from '@/lib/tradingview';
 
 type TileProps = {
   screen: Screen;
@@ -113,6 +119,24 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
   const isSolo = activeAudioId === screen.id;
   const muted = screen.muted ?? true;
 
+  const isTV = useMemo(() => isTradingViewWidget(screen.url), [screen.url]);
+  const currentSymbol = useMemo(() => getTradingViewSymbol(screen.url), [screen.url]);
+  const [symDraft, setSymDraft] = useState(currentSymbol);
+  const [symError, setSymError] = useState<string | null>(null);
+  const [symOpen, setSymOpen] = useState(false);
+
+  useEffect(() => { setSymDraft(currentSymbol); setSymError(null); }, [currentSymbol]);
+  // auto-open the symbol bar when a TV tile gets selected
+  useEffect(() => { if (isTV && selected) setSymOpen(true); }, [isTV, selected]);
+
+  const applySymbol = useCallback((raw: string) => {
+    const norm = normalizeSymbolInput(raw);
+    if (!norm) { setSymError('Type a symbol like AAPL, BTCUSD or NSE:RELIANCE'); return; }
+    const nextUrl = withTradingViewSymbol(screen.url, norm);
+    updateScreen(screen.id, { url: nextUrl, name: shortSymbol(norm) || screen.name });
+    setSymError(null);
+  }, [screen.url, screen.id, screen.name, updateScreen]);
+
   return (
     <motion.div
       onClick={() => onSelect(screen.id)}
@@ -172,6 +196,16 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
               </button>
             </>
           )}
+          {isTV && (
+            <button
+              onClick={() => setSymOpen((v) => !v)}
+              className="tile-btn"
+              aria-label="Change symbol"
+              title="Change stock / crypto symbol"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+          )}
           <button onClick={refresh} disabled={status === 'loading'} className="tile-btn" aria-label="Refresh" title="Refresh (R)">
             {status === 'loading' ? <Loader2 className="h-4 w-4 animate-spin text-accent" /> : <RotateCcw className="h-4 w-4" />}
           </button>
@@ -200,6 +234,11 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
             </DropdownMenuTrigger>
             <DropdownMenuContent side="bottom" align="end" className="z-50 min-w-[170px] rounded-xl border border-border bg-panel p-1 shadow-xl">
               <DropdownMenuItem onClick={refresh} className="dd-item"><RotateCcw className="h-4 w-4" /> Refresh</DropdownMenuItem>
+              {isTV && (
+                <DropdownMenuItem onClick={() => { onSelect(screen.id); setSymOpen(true); }} className="dd-item">
+                  <Search className="h-4 w-4" /> Change symbol…
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => updateScreen(screen.id, { pinned: !screen.pinned })} className="dd-item">
                 {screen.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />} {screen.pinned ? 'Unpin' : 'Pin position'}
               </DropdownMenuItem>
@@ -213,6 +252,59 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
           </DropdownMenu>
         </div>
       </div>
+
+      {/* TradingView symbol search — like a regular TV chart */}
+      {isTV && symOpen && (
+        <div
+          className="absolute inset-x-2 top-11 z-10 rounded-xl border border-border bg-black/85 p-2 shadow-xl backdrop-blur"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-1.5">
+            <Search className="h-4 w-4 shrink-0 text-muted" />
+            <input
+              autoFocus={selected}
+              value={symDraft}
+              onChange={(e) => { setSymDraft(e.target.value.toUpperCase()); setSymError(null); }}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') applySymbol(symDraft);
+                if (e.key === 'Escape') setSymOpen(false);
+              }}
+              placeholder="AAPL, BTCUSD, NSE:RELIANCE…"
+              spellCheck={false}
+              className="min-w-0 flex-1 rounded-md border border-border bg-black/50 px-2 py-1 font-mono text-[13px] text-text placeholder:text-muted focus:border-accent focus:outline-none"
+              aria-label="Chart symbol"
+            />
+            <button
+              onClick={() => applySymbol(symDraft)}
+              className="rounded-md bg-accent px-2.5 py-1 text-[13px] font-semibold text-black hover:brightness-110"
+              title="Load symbol (Enter)"
+            >
+              <Check className="h-4 w-4" />
+            </button>
+          </div>
+          {symError
+            ? <p className="mt-1 text-[12px] text-red-400">{symError}</p>
+            : <p className="mt-1 truncate font-mono text-[11px] text-muted">Now: {currentSymbol || '—'} · Enter to load</p>}
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {POPULAR_SYMBOLS.slice(0, 8).map((p) => (
+              <button
+                key={p.symbol}
+                onClick={() => { setSymDraft(p.symbol); applySymbol(p.symbol); }}
+                className={`rounded-full border px-2 py-0.5 font-mono text-[11px] transition ${
+                  currentSymbol === p.symbol
+                    ? 'border-accent bg-accent/20 text-accent'
+                    : 'border-border text-muted hover:border-accent/50 hover:text-text'
+                }`}
+                title={p.symbol}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* body — iframe always mounted so load events work */}
       <div className="relative h-full w-full flex-1 bg-black/40">

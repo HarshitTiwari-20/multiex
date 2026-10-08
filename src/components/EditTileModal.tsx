@@ -6,6 +6,10 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } fr
 import { X, Save, Trash2, AlertCircle } from 'lucide-react';
 import { useDashboard } from '@/store/dashboard';
 import { normalizeUrl, detectType, detectLive, buildYouTubeEmbed, safeHostname } from '@/lib/youtube';
+import {
+  isTradingViewWidget, getTradingViewSymbol, withTradingViewSymbol,
+  normalizeSymbolInput, shortSymbol, POPULAR_SYMBOLS,
+} from '@/lib/tradingview';
 
 export function EditTileModal({ id, onClose }: { id: string | null; onClose: () => void }) {
   const { screens, updateScreen, removeScreen } = useDashboard();
@@ -16,6 +20,7 @@ export function EditTileModal({ id, onClose }: { id: string | null; onClose: () 
   const [type, setType] = useState<'youtube' | 'website' | 'custom'>('website');
   const [live, setLive] = useState(false);
   const [pinned, setPinned] = useState(false);
+  const [symbol, setSymbol] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,12 +30,14 @@ export function EditTileModal({ id, onClose }: { id: string | null; onClose: () 
       setType(screen.type);
       setLive(!!screen.live);
       setPinned(!!screen.pinned);
+      setSymbol(getTradingViewSymbol(screen.url));
       setError(null);
     }
   }, [screen?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!screen) return null;
 
+  const tvMode = isTradingViewWidget(url) || isTradingViewWidget(screen.url);
   const normalized = normalizeUrl(url);
   const previewSrc = normalized
     ? type === 'youtube' ? buildYouTubeEmbed(normalized) : normalized
@@ -38,11 +45,20 @@ export function EditTileModal({ id, onClose }: { id: string | null; onClose: () 
 
   const save = () => {
     if (!normalized) { setError('Enter a valid http(s) URL.'); return; }
+    let finalUrl = normalized;
+    let finalName = name.trim();
+    if (tvMode) {
+      const norm = normalizeSymbolInput(symbol);
+      if (!norm) { setError('Enter a TradingView symbol like AAPL, BTCUSD or NSE:RELIANCE.'); return; }
+      finalUrl = withTradingViewSymbol(normalized, norm);
+      if (!finalName) finalName = shortSymbol(norm);
+    }
+    if (!finalName) finalName = safeHostname(finalUrl);
     updateScreen(screen.id, {
-      name: name.trim() || safeHostname(normalized),
-      url: normalized,
+      name: finalName,
+      url: finalUrl,
       type,
-      live: live || detectLive(normalized, type),
+      live: live || detectLive(finalUrl, type),
       pinned,
     });
     onClose();
@@ -111,6 +127,34 @@ export function EditTileModal({ id, onClose }: { id: string | null; onClose: () 
                 Auto-detect from URL
               </button>
             </div>
+            {tvMode && (
+              <div>
+                <label className="mb-1 block text-sm text-muted" htmlFor="edit-symbol">
+                  Chart symbol — type like a TradingView chart
+                </label>
+                <input
+                  id="edit-symbol"
+                  value={symbol}
+                  onChange={(e) => { setSymbol(e.target.value.toUpperCase()); setError(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+                  placeholder="AAPL, BTCUSD, NSE:RELIANCE…"
+                  spellCheck={false}
+                  className="w-full rounded-lg border border-border bg-black/30 px-3 py-2 font-mono text-text placeholder:text-muted focus:border-accent focus:outline-none"
+                />
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {POPULAR_SYMBOLS.map((p) => (
+                    <button
+                      key={p.symbol}
+                      onClick={() => setSymbol(p.symbol)}
+                      className="rounded-full border border-border px-2.5 py-0.5 font-mono text-[12px] text-muted transition hover:border-accent/60 hover:text-text"
+                      title={p.symbol}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap gap-4">
               <label className="flex items-center gap-2 text-sm text-text">
                 <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} className="accent-[#00b4d8]" />

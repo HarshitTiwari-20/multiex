@@ -2,14 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Volume2, VolumeX, Play, Pause, RotateCcw, ExternalLink } from 'lucide-react';
+import { ChevronLeft, Volume2, VolumeX, Play, Pause, RotateCcw, ExternalLink, Search, Check } from 'lucide-react';
 import { buildYouTubeEmbed } from '@/lib/youtube';
+import { isTradingViewWidget, getTradingViewSymbol, withTradingViewSymbol, normalizeSymbolInput, shortSymbol } from '@/lib/tradingview';
 import { useDashboard, type Screen } from '@/store/dashboard';
 
 export function FullscreenView({ screen, onExit }: { screen: Screen; onExit: () => void }) {
   const { updateScreen, setAudioSolo, refreshScreen } = useDashboard();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [playing, setPlaying] = useState(false);
+  const isTV = isTradingViewWidget(screen.url);
+  const [symDraft, setSymDraft] = useState(getTradingViewSymbol(screen.url));
+  useEffect(() => { setSymDraft(getTradingViewSymbol(screen.url)); }, [screen.url]);
+  const applySymbol = () => {
+    const norm = normalizeSymbolInput(symDraft);
+    if (!norm) return;
+    updateScreen(screen.id, { url: withTradingViewSymbol(screen.url, norm), name: shortSymbol(norm) || screen.name });
+  };
 
   const src = useMemo(() => {
     const base = screen.type === 'youtube' ? buildYouTubeEmbed(screen.url) : screen.url;
@@ -41,7 +50,26 @@ export function FullscreenView({ screen, onExit }: { screen: Screen; onExit: () 
           <ChevronLeft className="h-5 w-5" />
         </button>
         <h2 className="min-w-0 flex-1 truncate font-medium">{screen.name}</h2>
-        <span className="hidden text-xs text-muted sm:inline">{screen.url}</span>
+        {isTV && (
+          <div className="hidden items-center gap-1.5 md:flex" onKeyDown={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-1.5 rounded-lg border border-border bg-black/40 px-2 py-1">
+              <Search className="h-3.5 w-3.5 text-muted" />
+              <input
+                value={symDraft}
+                onChange={(e) => setSymDraft(e.target.value.toUpperCase())}
+                onKeyDown={(e) => { if (e.key === 'Enter') applySymbol(); if (e.key === 'Escape') (e.target as HTMLInputElement).blur(); }}
+                placeholder="AAPL, BTCUSD…"
+                spellCheck={false}
+                className="w-36 bg-transparent font-mono text-[13px] text-text placeholder:text-muted focus:outline-none"
+                aria-label="Chart symbol"
+              />
+              <button onClick={applySymbol} className="rounded bg-accent px-1.5 py-0.5 text-black hover:brightness-110" title="Load symbol (Enter)">
+                <Check className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+        <span className="hidden text-xs text-muted lg:inline">{isTV ? getTradingViewSymbol(screen.url) : screen.url}</span>
         <div className="flex items-center gap-1">
           {screen.type === 'youtube' && (
             <>
