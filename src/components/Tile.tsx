@@ -126,9 +126,16 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
   const [symOpen, setSymOpen] = useState(false);
   const symInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setSymDraft(currentSymbol); setSymError(null); }, [currentSymbol]);
-  // auto-open the symbol bar when a TV tile gets selected
-  useEffect(() => { if (isTV && selected) setSymOpen(true); }, [isTV, selected]);
+  // While a tile is NOT selected the draft mirrors the loaded symbol.
+  // Once selected, the box clears so typing starts fresh (appending to
+  // "BITSTAMP:BTCUSD" would produce garbage like "BITSTAMP:BTCUSDAAPL").
+  useEffect(() => {
+    if (!selected) { setSymDraft(currentSymbol); setSymError(null); }
+  }, [currentSymbol, selected]);
+  // selecting a TV tile opens a fresh, empty symbol box
+  useEffect(() => {
+    if (isTV && selected) { setSymOpen(true); setSymDraft(''); setSymError(null); }
+  }, [isTV, selected]);
 
   const applySymbol = useCallback((raw: string) => {
     const norm = normalizeSymbolInput(raw);
@@ -136,6 +143,9 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
     const nextUrl = withTradingViewSymbol(screen.url, norm);
     updateScreen(screen.id, { url: nextUrl, name: shortSymbol(norm) || screen.name });
     setSymError(null);
+    setSymDraft(''); // keep box fresh for the next symbol
+    setSymOpen(false); // hide once the chart starts loading the named stock
+    symInputRef.current?.blur();
   }, [screen.url, screen.id, screen.name, updateScreen]);
 
   // Just-type search: when THIS TradingView tile is selected, printable keys
@@ -233,7 +243,13 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
           )}
           {isTV && (
             <button
-              onClick={() => setSymOpen((v) => !v)}
+              onClick={() => {
+                onSelect(screen.id);
+                setSymOpen(true);
+                setSymDraft('');
+                setSymError(null);
+                requestAnimationFrame(() => symInputRef.current?.focus());
+              }}
               className="tile-btn"
               aria-label="Change symbol"
               title="Change stock / crypto symbol"
@@ -344,6 +360,17 @@ function TileInner({ screen, selected, showHeaderAlways, borderRadius, onFullscr
 
       {/* body — iframe always mounted so load events work */}
       <div className="relative h-full w-full flex-1 bg-black/40">
+        {/* First click selects the tile (iframes swallow clicks, so without
+            this a chart tile can never become selected). After selecting,
+            clicks pass through to the chart. */}
+        {!selected && (
+          <button
+            aria-label={`Select ${screen.name}`}
+            title="Click to select — then just type a symbol"
+            onClick={(e) => { e.stopPropagation(); onSelect(screen.id); }}
+            className="absolute inset-0 z-[5] cursor-pointer bg-transparent"
+          />
+        )}
         <iframe
           ref={iframeRef}
           key={src}
